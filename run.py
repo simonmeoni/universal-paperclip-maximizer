@@ -112,7 +112,7 @@ def main(max_turns=30):
 
         if actions:
             # There is an action to run
-            action, action_input = actions
+            action, action_input = actions[0]
             if action not in known_actions.keys():
                 logger.error(f"Unknown action: {action}: {action_input}")
                 raise Exception(f"Unknown action: {action}: {action_input}")
