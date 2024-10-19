@@ -1,18 +1,14 @@
 import time
-from os import wait3
 
 from openai import OpenAI
 
-client = OpenAI(
-    api_key=(
-        "sk-Y00WxuVkLAy42h2PnVtxWlDy12l9bnvgUurWos0zHLT3BlbkFJ6bHgFhX97uqs"
-        "TcyLy2hR0zbn8wImNRzt_GWtPQbbEA"
-    )
-)
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 import re
+from dotenv import load_dotenv
 
+load_dotenv()
+client = OpenAI()
 service = Service(executable_path="/opt/homebrew/bin/chromedriver")
 driver = webdriver.Chrome(service=service)
 driver.get("https://www.decisionproblem.com/paperclips/index2.html")
@@ -77,7 +73,7 @@ class ChatBot:
 
     def execute(self):
         completion = client.chat.completions.create(
-            model="gpt-4o-mini", messages=self.messages
+            model="gpt-4o-mini", messages=self.messages[:1] + self.messages[-2:],
         )
         # Uncomment this to print out token usage each time, e.g.
         # {"completion_tokens": 86, "prompt_tokens": 26, "total_tokens": 112}
