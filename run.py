@@ -1,11 +1,14 @@
 import time
-
+import logging
 from openai import OpenAI
-
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 import re
 from dotenv import load_dotenv
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 client = OpenAI()
@@ -25,8 +28,8 @@ Use Thought to describe your thoughts about the question you have been asked.
 Use Action to run one of the actions available to you - then return PAUSE.
 Observation, Current Game State and Current Javascript Strategy  will be the result of running those actions.
 
-**The argument of each Action must be in the same line as the action name and only in one line.
-such as 'Action: <action-name>: <action-argument>'**
+**The argument of each Action must be in this following format
+such as 'Action: <action-name>: <javascript><action-argument></javascript>'**
 
 Your available actions are:
 - ModifyJavascriptStrategy: Modify a comprehensive JavaScript strategy that executes a series 
@@ -42,13 +45,23 @@ Current Game State: <html>
 Current Strategy: null
 
 Thought: I need to create a JavaScript strategy to maximize the number of paperclips.
-Action: ModifyJavascriptStrategy: if (funds >= 5) { document.getElementById('btnBuyClippers').click(); } document.getElementById('btnMakePaperclip').click();
+Action: ModifyJavascriptStrategy: <javascript>
+if (funds >= 5) { 
+    document.getElementById('btnBuyClippers').click(); 
+} 
+document.getElementById('btnMakePaperclip').click();
+</javascript>
 PAUSE
 
 You will be called again with this:
 Observation: Strategy executed successfully
 Current Game State: <html>
-Current Strategy: if (funds >= 5) { document.getElementById('btnBuyClippers').click(); } document.getElementById('btnMakePaperclip').click();
+Current Strategy: <javascript> 
+if (funds >= 5) { 
+document.getElementById('btnBuyClippers').click(); 
+} 
+document.getElementById('btnMakePaperclip').click();
+</javascript>
 
 You then output:
 
@@ -73,17 +86,20 @@ class ChatBot:
 
     def execute(self):
         completion = client.chat.completions.create(
-            model="gpt-4o-mini", messages=self.messages[:1] + self.messages[-2:],
+            model="gpt-4o-mini",
+            messages=self.messages[:1]
+            + [message for message in self.messages if message["role"] == "assistant"]
+            + self.messages[-1:],
         )
         # Uncomment this to print out token usage each time, e.g.
         # {"completion_tokens": 86, "prompt_tokens": 26, "total_tokens": 112}
-        print(completion.usage)
+        logger.info(f"Token usage: {completion.usage}")
         return completion.choices[0].message.content
 
 
 def main(max_turns=30):
     # Set up ChromeDriver
-    action_re = re.compile("^Action: (\w+): (.*)$")
+    action_re = re.compile("Action: (\w+): <javascript>(.*?)</javascript>", re.DOTALL)
 
     i = 0
     bot = ChatBot(system=prompt)
@@ -91,21 +107,24 @@ def main(max_turns=30):
     while i < max_turns:
         i += 1
         result = bot(next_prompt)
-        print(result)
-        actions = [action_re.match(a) for a in result.split("\n") if action_re.match(a)]
+        logger.info(result)
+        actions = action_re.findall(result)
+
         if actions:
             # There is an action to run
-            action, action_input = actions[0].groups()
+            action, action_input = actions
             if action not in known_actions.keys():
-                raise Exception("Unknown action: {}: {}".format(action, action_input))
-            print(" -- running {} {}".format(action, action_input))
+                logger.error(f"Unknown action: {action}: {action_input}")
+                raise Exception(f"Unknown action: {action}: {action_input}")
+            logger.info(f"Running {action} {action_input}")
             observations = known_actions[action](action_input)
-            print("Observation:", observations)
-            next_prompt = f"Observation: {observations} \n Current Game State: {observation()}"
+            logger.info(f"Observation: {observations}")
+            next_prompt = (
+                f"Observation: {observations} \n Current Game State: {observation()}"
+            )
         else:
             continue
         time.sleep(10)
-
 
 def observation():
     """
@@ -116,7 +135,7 @@ def observation():
         html_content = driver.page_source.replace("\n", "")
         return html_content
     except Exception as e:
-        print(f"Error during observation: {e}")
+        logger.error(f"Error during observation: {e}")
         return None
 
 
@@ -138,11 +157,12 @@ def modify_javascript_strategy(strategy_script):
             // Set the new strategy with setInterval and store it globally
             window.activeStrategyInterval = setInterval(() => { %s }, 2000);
             console.log('New strategy set');
-            """ % strategy_script
+            """
+            % strategy_script
         )
         return "Strategy replaced successfully"
     except Exception as e:
-        print(f"Error executing strategy: {e}")
+        logger.error(f"Error executing strategy: {e}")
         return None
 
 
