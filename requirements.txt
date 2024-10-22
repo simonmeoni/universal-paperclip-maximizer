@@ -1,0 +1,5 @@
+openai==1.52.0
+selenium==4.25.0
+unstructured==0.16.0
+unstructured-client==0.26.1
+python-dotenv==0.21.0
