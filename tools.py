@@ -1,3 +1,6 @@
+import re
+
+
 class Tools:
     def __init__(self, driver, logger):
         self.driver = driver
@@ -5,6 +8,7 @@ class Tools:
         self.known_actions = {
             "ModifyJavascriptStrategy": self.modify_javascript_strategy,
         }
+        self.action_re = re.compile(r"Action: (\w+): <javascript>(.*?)</javascript>", re.DOTALL)
 
     def modify_javascript_strategy(self, strategy_script):
         """

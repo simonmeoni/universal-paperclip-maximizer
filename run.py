@@ -1,10 +1,10 @@
-import time
 import logging
+import time
+
+from dotenv import load_dotenv
 from openai import OpenAI
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
-import re
-from dotenv import load_dotenv
 
 from chatbot import ChatBot, PROMPT
 from environment import Environment
@@ -22,15 +22,17 @@ MODEL = "gpt-4o-mini"
 
 
 def main(max_turns=30):
-    # Set up ChromeDriver
-
+    # Initialize OpenAI client
     client = OpenAI()
+
+    # initialize webdriver
     service = Service(executable_path="/opt/homebrew/bin/chromedriver")
     driver = webdriver.Chrome(service=service)
     driver.get("https://www.decisionproblem.com/paperclips/index2.html")
 
-    action_re = re.compile(r"Action: (\w+): <javascript>(.*?)</javascript>", re.DOTALL)
 
+
+    # Initialize chatbot and tools
     bot = ChatBot(PROMPT, client, MODEL, logger)
     tools = Tools(driver, logger)
     environment = Environment(driver, logger)
@@ -44,7 +46,7 @@ def main(max_turns=30):
         i += 1
         result = bot(next_prompt)
         logger.info(result)
-        actions = action_re.findall(result)
+        actions = tools.action_re.findall(result)
 
         if actions:
             # There is an action to run
