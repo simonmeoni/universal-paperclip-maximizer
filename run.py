@@ -27,7 +27,9 @@ def main(max_turns=30):
 
     # initialize webdriver
     service = Service(executable_path="/opt/homebrew/bin/chromedriver")
-    driver = webdriver.Chrome(service=service)
+    chrome_options = webdriver.ChromeOptions()
+    chrome_options.add_experimental_option("detach", True)
+    driver = webdriver.Chrome(service=service, options=chrome_options)
     driver.get("https://www.decisionproblem.com/paperclips/index2.html")
 
 
