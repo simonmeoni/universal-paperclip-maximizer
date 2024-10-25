@@ -59,7 +59,7 @@ PAUSE
 You will be called again with this:
 
 **Observation:** 
-Action executed successfully
+Action were successfully executed
 
 **Current Game State:** 
 Paperclips: 35
