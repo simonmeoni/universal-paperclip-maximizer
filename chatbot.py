@@ -114,7 +114,5 @@ class ChatBot:
             + [message for message in self.messages if message["role"] == "assistant"]
             + self.messages[-1:],
         )
-        # Uncomment this to print out token usage each time, e.g.
-        # {"completion_tokens": 86, "prompt_tokens": 26, "total_tokens": 112}
         self.logger.info(f"Token usage: {completion.usage}")
         return completion.choices[0].message.content
