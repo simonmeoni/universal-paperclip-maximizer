@@ -1,4 +1,4 @@
-import re
+from selenium.webdriver.common.by import By
 
 
 class Environment:
@@ -6,6 +6,7 @@ class Environment:
         # Initialize any necessary attributes here
         self.driver = driver
         self.logger = logger
+        self.actions_available = {}
 
     def get_game_state(self):
         """
@@ -15,18 +16,19 @@ class Environment:
         try:
             html_content = self.driver.page_source.replace("\n", "")
             return (
-                f"**Digest:**\n {self.digest(html_content)} \n\n "
-                f"**Action Available:**\n {self.find_interactions()}"
+                f"**Game State:**\n {self.digest(html_content)} \n"
+                f"**Action Available:**\n {self.get_actions().strip()}"
             )
         except Exception as e:
             self.logger.error(f"Error during observation: {e}")
             return None
 
-    def find_interactions(self):
+    def get_actions(self):
         """
         Finds the available actions in the HTML content.
         Returns a list of JavaScript functions from button attributes.
         """
+        self.actions_available = {}
         try:
             # Find all button elements
             button_elements = self.driver.find_elements("tag name", "button")
@@ -35,14 +37,16 @@ class Environment:
                 if element.is_displayed() and element.is_enabled():
                     if "projectButton" in element.get_attribute("class"):
                         element_id = element.get_attribute("id")
-                        actions.append(
-                            f"{element.text}: document.getElementById('{element_id}').click()"
-                        )
+                        title = element.text.split("(")[0].strip()
+                        actions.append(title)
+                        self.actions_available[title] = f"document.getElementById('{element_id}').click()"
                     else:
                         onclick_attr = element.get_attribute("onclick")
                         button_name = element.text
                         if onclick_attr:
-                            actions.append(f"{button_name}: {onclick_attr}")
+                            actions.append(button_name)
+                            self.actions_available[
+                                button_name] = onclick_attr
             return "\n".join(actions)
         except Exception as e:
             self.logger.error(f"Error during finding actions: {e}")
@@ -53,29 +57,10 @@ class Environment:
         Digests the current state of the game by fetching the entire HTML of the page
         and running it through the unstructured partioning model."""
         # Sample body text
-        body_text = self.driver.find_element("tag name", "body").text
-
-        # Clean up the text
-
-        # Step 1: Remove multiple newlines and extra spaces
-        cleaned_text = re.sub(
-            r"\n+", "\n", body_text
-        )  # Collapse multiple newlines into a single one
-        cleaned_text = re.sub(
-            r" {2,}", " ", cleaned_text
-        )  # Collapse multiple spaces into a single space
-
-        # Step 2: Optionally, remove unwanted sections
-        # For example, removing lines that include "Mobile Version", "
-        # T-Shirts", and other irrelevant sections
-        lines = cleaned_text.splitlines()
-        relevant_lines = []
-        for line in lines:
-            if not any(
-                phrase in line for phrase in ["Mobile Version", "T-Shirts", "...", "|"]
-            ):
-                relevant_lines.append(line.strip())
-
-        # Join the relevant lines back into a single string
-        final_cleaned_text = "\n".join(relevant_lines)
-        return final_cleaned_text
+        return "\n***************\n".join(
+             [self.driver.find_element("id", "readout1").text] + [
+                div.text
+                for div in self.driver.find_elements(By.XPATH, "*/*/*/*/div")
+                if div.text != ""
+            ][1:]
+        )
